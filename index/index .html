@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>商火包 · 个人主页</title>
+    <style>
+        /* ==========================================
+           1. 基础重置与宋画色彩体系
+           ========================================== */
+        :root {
+            --bg-paper: #f4f0ea;
+            --card-bg: rgba(234, 227, 210, 0.7);
+            --text-ink: #2b2b2b;
+            --text-muted: #5a544b;
+            --accent-green: #3a4e42;
+            --accent-red: #8b261d;
+            --accent-gold: #967240;
+            --border-color: #d1c7bd;
+            --shadow: 0 10px 30px rgba(43, 43, 43, 0.08);
+            --font-serif: "Kaiti SC", "STKaiti", "Noto Serif SC", "SimSun", serif;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-paper);
+            color: var(--text-ink);
+            font-family: var(--font-serif);
+            line-height: 1.8;
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* 意境背景 Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ==========================================
+           2. 卷轴开场动画 (画卷徐徐展开)
+           ========================================== */
+        #intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #120f0d;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .scroll-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 80vh;
+            width: 90vw;
+            max-width: 1000px;
+        }
+
+        /* 卷轴中间展示的千里江山图 */
+        .scroll-painting {
+            position: relative;
+            height: 100%;
+            width: 0%; /* 初始宽度为0，徐徐展开 */
+            background-image: url('431d1c6b972a2defeb1452fc1ff48ccc.jpg');
+            background-size: cover;
+            background-position: center;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.5);
+            border-top: 12px solid #231b15;
+            border-bottom: 12px solid #231b15;
+            overflow: hidden;
+            transition: width 3.2s cubic-bezier(0.35, 0.1, 0.25, 1);
+        }
+
+        .scroll-painting::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 10%, rgba(0,0,0,0) 90%, rgba(0,0,0,0.15) 100%);
+            pointer-events: none;
+        }
+
+        /* 卷轴画轴 (两侧轴杆) */
+        .scroll-rod {
+            width: 28px;
+            height: calc(100% + 40px);
+            background: linear-gradient(90deg, #513b2c 0%, #2f2117 50%, #150e0a 100%);
+            box-shadow: 2px 5px 15px rgba(0,0,0,0.7);
+            border-radius: 4px;
+            position: absolute;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 3.2s cubic-bezier(0.35, 0.1, 0.25, 1);
+        }
+
+        /* 轴头 */
+        .scroll-rod::before, .scroll-rod::after {
+            content: "";
+            width: 38px;
+            height: 20px;
+            background: radial-gradient(circle, #e2ccad 0%, #866d4f 70%, #44321e 100%);
+            border: 2px solid #1a120b;
+            border-radius: 3px;
+        }
+        .scroll-rod::before { margin-top: -20px; }
+        .scroll-rod::after { margin-bottom: -20px; }
+
+        .rod-left {
+            transform: translateX(0px);
+        }
+
+        .rod-right {
+            transform: translateX(0px);
+        }
+
+        /* 画卷展开后的文字标题 */
+        .scroll-title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 1.8rem;
+            letter-spacing: 12px;
+            writing-mode: vertical-rl;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.9);
+            opacity: 0;
+            transition: opacity 1.5s ease 1s;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 30px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 跳过/进入主页 按钮 */
+        .enter-btn {
+            position: absolute;
+            bottom: 6vh;
+            background: rgba(139, 38, 29, 0.95);
+            border: 1px solid var(--accent-gold);
+            color: #f4f0ea;
+            padding: 8px 30px;
+            font-family: var(--font-serif);
+            font-size: 1rem;
+            letter-spacing: 3px;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.8s ease 2.2s;
+            border-radius: 4px;
+            box-shadow: 0 4px 15px rgba(139, 38, 29, 0.4);
+        }
+
+        .enter-btn:hover {
+            background: #a82e22;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(139, 38, 29, 0.6);
+        }
+
+        /* 触发开卷动画的激活状态 */
+        #intro-overlay.unfold .scroll-painting {
+            width: 100%;
+        }
+        #intro-overlay.unfold .rod-left {
+            transform: translateX(-500px); /* 动态由JS计算 */
+        }
+        #intro-overlay.unfold .rod-right {
+            transform: translateX(500px);  /* 动态由JS计算 */
+        }
+        #intro-overlay.unfold .scroll-title {
+            opacity: 1;
+        }
+        #intro-overlay.unfold .enter-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ==========================================
+           3. 矢量重构：动态摇曳的水墨竹子 (左右两侧)
+           ========================================== */
+        .bamboo-container {
+            position: fixed;
+            bottom: -20px;
+            height: 95vh;
+            width: 260px;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.42;
+        }
+
+        .bamboo-container-left {
+            left: -30px;
+            transform-origin: bottom center;
+            animation: bamboo-sway-left 7s ease-in-out infinite alternate;
+        }
+
+        .bamboo-container-right {
+            right: -30px;
+            transform: scaleX(-1); /* 镜像右侧竹子 */
+            transform-origin: bottom center;
+            animation: bamboo-sway-right 8.5s ease-in-out infinite alternate;
+        }
+
+        /* 水墨竹叶与竹枝的路径样式 */
+        .bamboo-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .bamboo-stalk {
+            fill: none;
+            stroke: #222b24; /* 水墨深灰绿色 */
+            stroke-width: 9;
+            stroke-linecap: round;
+        }
+
+        .bamboo-branch {
+            fill: none;
+            stroke: #2c382f;
+            stroke-width: 3.5;
+            stroke-linecap: round;
+        }
+
+        .bamboo-leaf {
+            fill: #1d2620; /* 浓墨 */
+            opacity: 0.9;
+        }
+
+        .bamboo-leaf-light {
+            fill: #394d3f; /* 浅墨 */
+            opacity: 0.7;
+        }
+
+        /* 细节局部轻微摇动（风吹叶动） */
+        .sway-leaves-group {
+            transform-origin: 50% 50%;
+            animation: leaf-flutter 3.5s ease-in-out infinite alternate;
+        }
+
+        /* 全局风吹竹林摆动动画 */
+        @keyframes bamboo-sway-left {
+            0% {
+                transform: rotate(0deg) skewX(0deg);
+            }
+            100% {
+                transform: rotate(3.5deg) skewX(2deg) translateX(12px);
+            }
+        }
+
+        @keyframes bamboo-sway-right {
+            0% {
+                transform: scaleX(-1) rotate(0deg) skewX(0deg);
+            }
+            100% {
+                transform: scaleX(-1) rotate(4deg) skewX(2.5deg) translateX(15px);
+            }
+        }
+
+        @keyframes leaf-flutter {
+            0% {
+                transform: rotate(0deg) scale(1);
+            }
+            100% {
+                transform: rotate(4.5deg) scale(0.98);
+            }
+        }
+
+        /* 全局主容器 */
+        .app-container {
+            position: relative;
+            z-index: 2; /* 确保在竹子和Canvas上层 */
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px 16px 80px 16px;
+        }
+
+        /* ==========================================
+           4. 顶部导航与汉堡菜单 (三条杠)
+           ========================================== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-logo {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--accent-red);
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-seal {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 26px;
+            text-align: center;
+            background-color: var(--accent-red);
+            color: #fff;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(139, 38, 29, 0.3);
+        }
+
+        .hamburger-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 32px;
+            height: 24px;
+            z-index: 100;
+            position: relative;
+        }
+
+        .hamburger-btn span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            background-color: var(--text-ink);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .hamburger-btn.active span:nth-child(1) {
+            transform: translateY(9px) rotate(45deg);
+        }
+        .hamburger-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+        .hamburger-btn.active span:nth-child(3) {
+            transform: translateY(-9px) rotate(-45deg);
+        }
+
+        /* 抽屉导航 */
+        .nav-drawer {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 260px;
+            height: 100%;
+            background-color: var(--bg-paper);
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+            z-index: 90;
+            padding: 80px 24px 24px 24px;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-left: 2px solid var(--accent-green);
+        }
+
+        .nav-drawer.open {
+            right: 0;
+        }
+
+        .nav-item {
+            background: transparent;
+            border: none;
+            text-align: left;
+            font-family: var(--font-serif);
+            font-size: 1.15rem;
+            padding: 12px 16px;
+            color: var(--text-ink);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background-color: var(--card-bg);
+            color: var(--accent-red);
+            padding-left: 22px;
+        }
+
+        .nav-item.active::after {
+            content: "◆";
+            font-size: 0.8rem;
+            color: var(--accent-red);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(2px);
+            z-index: 80;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ==========================================
+           5. 标签页内容区域 (Tabs)
+           ========================================== */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 卡片通用 */
+        .card {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background-color: var(--accent-green);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--accent-green);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        /* ==========================================
+           6. 首页与全新座右铭排版
+           ========================================== */
+        .profile-header {
+            text-align: center;
+            padding: 20px 0 10px 0;
+        }
+
+        .avatar-wrapper {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 16px auto;
+            border-radius: 50%;
+            border: 2px solid var(--accent-gold);
+            padding: 4px;
+            background: var(--bg-paper);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-red);
+            font-size: 2.2rem;
+            font-weight: bold;
+        }
+
+        .hero-name {
+            font-size: 2rem;
+            letter-spacing: 4px;
+            color: var(--text-ink);
+            margin-bottom: 6px;
+        }
+
+        .hero-tag {
+            font-size: 0.95rem;
+            color: var(--accent-gold);
+            margin-bottom: 20px;
+        }
+
+        /* 人生三境界：座右铭模块 (优雅卡片，放置于自叙之上) */
+        .motto-card {
+            background: rgba(234, 227, 210, 0.85);
+            border: 1px solid var(--accent-gold);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 15px auto 28px auto;
+            max-width: 650px;
+            box-shadow: var(--shadow);
+            position: relative;
+            text-align: center;
+        }
+
+        .motto-card::before {
+            content: "境界";
+            position: absolute;
+            right: 15px;
+            bottom: 10px;
+            font-size: 2.4rem;
+            color: rgba(150, 114, 64, 0.08);
+            font-family: var(--font-serif);
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .motto-heading {
+            color: var(--accent-red);
+            font-size: 1.05rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 3px;
+        }
+
+        .motto-text-line {
+            font-size: 0.98rem;
+            line-height: 2;
+            color: var(--text-ink);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .motto-text-line:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .motto-text-line span {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+
+        .intro-text {
+            color: var(--text-muted);
+            font-size: 0.98rem;
+            text-indent: 2em;
+            margin-bottom: 6px;
+        }
+
+        .intro-text:last-of-type {
+            margin-bottom: 0;
+        }
+
+        /* 兴趣标签 */
+        .tag-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-top: 14px;
+        }
+
+        .tag {
+            background: rgba(75, 98, 85, 0.12);
+            color: var(--accent-green);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(75, 98, 85, 0.2);
+        }
+
+        /* ==========================================
+           7. AI 时代标签页 (智笔新绘)
+           ========================================== */
+        .ai-portfolio-intro {
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+
+        .ai-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .ai-card {
+            background: rgba(244, 240, 234, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .ai-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-green);
+            box-shadow: var(--shadow);
+        }
+
+        .ai-img-wrapper {
+            width: 100%;
+            height: 220px;
+            overflow: hidden;
+            background: #dcd6cd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .ai-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .ai-card:hover .ai-img {
+            transform: scale(1.06);
+        }
+
+        .ai-info {
+            padding: 18px;
+        }
+
+        .ai-card-title {
+            font-size: 1.15rem;
+            color: var(--accent-red);
+            font-weight: bold;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(139,38,29,0.1);
+            padding-bottom: 4px;
+        }
+
+        .ai-card-desc {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ==========================================
+           8. 作品集 / 画廊
+           ========================================== */
+        .work-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 16px;
+            margin-top: 8px;
+        }
+
+        .work-item {
+            background: var(--bg-paper);
+            border-radius: 8px;
+            padding: 18px 12px 14px 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.25s ease;
+            cursor: default;
+        }
+
+        .work-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+            border-color: var(--accent-gold);
+        }
+
+        .work-emoji {
+            font-size: 2.2rem;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .work-name {
+            font-size: 0.95rem;
+            color: var(--text-ink);
+            font-weight: bold;
+        }
+
+        .work-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ==========================================
+           9. 联系
+           ========================================== */
+        .contact-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            background: rgba(244, 240, 234, 0.6);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--text-ink);
+        }
+
+        .contact-item:hover {
+            background: var(--card-bg);
+            border-color: var(--accent-gold);
+            padding-left: 20px;
+        }
+
+        .contact-icon {
+            font-size: 1.4rem;
+            width: 32px;
+            text-align: center;
+        }
+
+        .contact-label {
+            font-weight: bold;
+            min-width: 56px;
+            color: var(--text-muted);
+        }
+
+        .contact-value {
+            color: var(--text-ink);
+            word-break: break-all;
+        }
+
+        /* ==========================================
+           10. 页脚
+           ========================================== */
+        .footer-note {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+            letter-spacing: 1px;
+            opacity: 0.7;
+        }
+
+        /* ==========================================
+           11. 响应式微调
+           ========================================== */
+        @media (min-width: 1250px) {
+            .bamboo-container {
+                width: 280px;
+                opacity: 0.6;
+            }
+            .bamboo-container-left { left: 10px; }
+            .bamboo-container-right { right: 10px; }
+        }
+
+        @media (max-width: 950px) {
+            .bamboo-container {
+                width: 180px;
+                opacity: 0.3;
+            }
+            .bamboo-container-left { left: -40px; }
+            .bamboo-container-right { right: -40px; }
+        }
+
+        @media (max-width: 680px) {
+            /* 手机窄屏隐藏两侧竹子防拥挤 */
+            .bamboo-container {
+                display: none;
+            }
+        }
+
+        @media (min-width: 600px) {
+            .app-container {
+                padding: 30px 32px 80px 32px;
+            }
+
+            .work-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 20px;
+            }
+
+            .hero-name {
+                font-size: 2.4rem;
+            }
+
+            .avatar-wrapper {
+                width: 120px;
+                height: 120px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .card {
+                padding: 18px;
+            }
+
+            .contact-item {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="intro-overlay">
+        <div class="scroll-container">
+            <div class="scroll-rod rod-left" id="rod-left"></div>
+            <div class="scroll-painting" id="scroll-painting">
+                <div class="scroll-title">商火包 · 个人雅集</div>
+            </div>
+            <div class="scroll-rod rod-right" id="rod-right"></div>
+        </div>
+        <button class="enter-btn" id="enterBtn">启卷入席</button>
+    </div>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="bamboo-container bamboo-container-left">
+        <svg class="bamboo-svg" viewBox="0 0 200 800" xmlns="http://www.w3.org/2000/svg">
+            <path class="bamboo-stalk" d="M 50 800 Q 65 500 55 200 T 70 0" style="stroke: #5a6e60; stroke-width: 6; opacity: 0.4;" />
+            <path class="bamboo-stalk" d="M 110 800 Q 95 450 115 150 T 100 -50" />
+            <path class="bamboo-stalk" d="M 140 800 Q 150 480 135 180 T 145 -50" style="stroke-width: 7.5; stroke: #2a352d;" />
+            
+            <path class="bamboo-branch" d="M 108 500 Q 70 450 40 460" />
+            <path class="bamboo-branch" d="M 112 350 Q 150 300 170 310" />
+            <path class="bamboo-branch" d="M 104 220 Q 60 180 35 200" />
+            <path class="bamboo-branch" d="M 140 400 Q 180 360 205 380" />
+
+            <g class="sway-leaves-group">
+                <path class="bamboo-leaf" d="M 40 460 Q 20 455 5 470 Q 22 485 40 460" />
+                <path class="bamboo-leaf" d="M 40 460 Q 15 475 0 495 Q 20 495 40 460" />
+                
+                <path class="bamboo-leaf" d="M 170 310 Q 195 295 215 310 Q 190 325 170 310" />
+                <path class="bamboo-leaf" d="M 170 310 Q 200 315 220 335 Q 185 330 170 310" />
+                
+                <path class="bamboo-leaf" d="M 35 200 Q 10 185 -5 200 Q 12 215 35 200" />
+                <path class="bamboo-leaf" d="M 35 200 Q 8 205 -2 225 Q 15 220 35 200" />
+                
+                <path class="bamboo-leaf" d="M 102 -10 Q 80 -30 90 -55 Q 110 -35 102 -10" />
+                <path class="bamboo-leaf" d="M 102 -10 Q 125 -30 135 -55 Q 115 -35 102 -10" />
+            </g>
+
+            <g class="sway-leaves-group" style="animation-delay: -1.5s;">
+                <path class="bamboo-leaf-light" d="M 70 300 Q 50 280 30 295 Q 50 315 70 300" />
+                <path class="bamboo-leaf-light" d="M 70 300 Q 45 305 25 325 Q 50 325 70 300" />
+                
+                <path class="bamboo-leaf-light" d="M 138 180 Q 160 160 180 175 Q 160 195 138 180" />
+                <path class="bamboo-leaf-light" d="M 138 180 Q 165 185 185 205 Q 160 205 138 180" />
+            </g>
+        </svg>
+    </div>
+
+    <div class="bamboo-container bamboo-container-right">
+        <svg class="bamboo-svg" viewBox="0 0 200 800" xmlns="http://www.w3.org/2000/svg">
+            <path class="bamboo-stalk" d="M 40 800 Q 55 480 45 180 T 60 -50" style="stroke: #5a6e60; stroke-width: 5; opacity: 0.35;" />
+            <path class="bamboo-stalk" d="M 100 800 Q 115 500 100 200 T 110 -50" style="stroke-width: 8; stroke: #232c25;" />
+            <path class="bamboo-stalk" d="M 130 800 Q 120 450 135 150 T 120 -80" style="stroke-width: 6.5; stroke: #2f3b31;" />
+            
+            <path class="bamboo-branch" d="M 102 450 Q 60 410 30 420" />
+            <path class="bamboo-branch" d="M 106 300 Q 150 260 175 270" />
+            <path class="bamboo-branch" d="M 132 280 Q 90 230 65 240" />
+
+            <g class="sway-leaves-group" style="animation-delay: -0.7s;">
+                <path class="bamboo-leaf" d="M 30 420 Q 10 415 -5 430 Q 12 445 30 420" />
+                <path class="bamboo-leaf" d="M 30 420 Q 5 435 -10 455 Q 10 455 30 420" />
+                
+                <path class="bamboo-leaf" d="M 175 270 Q 200 255 220 270 Q 195 285 175 270" />
+                <path class="bamboo-leaf" d="M 175 270 Q 205 275 225 295 Q 190 290 175 270" />
+                
+                <path class="bamboo-leaf" d="M 65 240 Q 40 225 25 240 Q 42 255 65 240" />
+            </g>
+
+            <g class="sway-leaves-group" style="animation-delay: -2.2s;">
+                <path class="bamboo-leaf-light" d="M 104 120 Q 80 100 60 115 Q 80 135 104 120" />
+                <path class="bamboo-leaf-light" d="M 104 120 Q 75 125 55 145 Q 80 145 104 120" />
+            </g>
+        </svg>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <nav class="nav-drawer" id="navDrawer">
+        <button class="nav-item active" data-tab="tab-home">🏠 首页</button>
+        <button class="nav-item" data-tab="tab-works">🎨 作品集</button>
+        <button class="nav-item" data-tab="tab-ai">🤖 智笔新绘</button>
+        <button class="nav-item" data-tab="tab-contact">✉️ 联系</button>
+    </nav>
+
+    <div class="app-container">
+
+        <header class="header">
+            <div class="brand-logo">
+                <span class="brand-seal">商</span>
+                商火包
+            </div>
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="菜单">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </header>
+
+        <section class="tab-content active" id="tab-home">
+            <div class="profile-header">
+                <div class="avatar-wrapper">
+                    <div class="avatar-img">🔥</div>
+                </div>
+                <h1 class="hero-name">商火包</h1>
+                <div class="hero-tag">· 水墨之间 · 烟火人间 ·</div>
+
+                <div class="motto-card">
+                    <div class="motto-heading">📜 座右铭 · 人生三境界</div>
+                    <p class="motto-text-line">昨夜西风凋碧树，独上高楼，望尽天涯路。</p>
+                    <p class="motto-text-line">衣带渐宽终不悔，为伊消得人憔悴。</p>
+                    <p class="motto-text-line">众里寻他千百度，蓦然回首，那人却在<span>灯火阑珊处</span>。</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📜 自叙</div>
+                <p class="intro-text">
+                    商火包，取「商」之雅正、「火」之热烈、「包」之包容。
+                    好古风，喜丹青，常于宣纸素绢间寻一抹宁静。
+                </p>
+                <p class="intro-text">
+                    性爱丘山，亦爱市井烟火。笔下多山水花鸟，亦偶作小品杂记。
+                    愿以笔墨为舟，渡己亦渡人。
+                </p>
+                <div class="tag-group">
+                    <span class="tag">🎋 水墨</span>
+                    <span class="tag">🖌️ 书法</span>
+                    <span class="tag">📖 诗文</span>
+                    <span class="tag">🍵 茶道</span>
+                    <span class="tag">🌿 花鸟</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🗂️ 近况</div>
+                <ul style="list-style: none; padding-left: 0; color: var(--text-muted);">
+                    <li style="padding: 6px 0; border-bottom: 1px dashed var(--border-color);">
+                        ✦ 甲辰年夏 · 新作《烟雨册》完成
+                    </li>
+                    <li style="padding: 6px 0; border-bottom: 1px dashed var(--border-color);">
+                        ✦ 筹备「宋韵 · 四时」主题个展
+                    </li>
+                    <li style="padding: 6px 0;">
+                        ✦ 习琴不辍，偶得《流水》一曲
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="tab-content" id="tab-works">
+            <div class="card">
+                <div class="card-title">🎨 笔下之作</div>
+                <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 0.95rem;">
+                    近年墨戏，或工或写，皆一时兴会。
+                </p>
+                <div class="work-grid">
+                    <div class="work-item">
+                        <span class="work-emoji">🏔️</span>
+                        <div class="work-name">《秋山问道》</div>
+                        <div class="work-desc">纸本水墨 · 2025</div>
+                    </div>
+                    <div class="work-item">
+                        <span class="work-emoji">🌸</span>
+                        <div class="work-name">《海棠春睡》</div>
+                        <div class="work-desc">绢本设色 · 2025</div>
+                    </div>
+                    <div class="work-item">
+                        <span class="work-emoji">🎋</span>
+                        <div class="work-name">《竹石清趣》</div>
+                        <div class="work-desc">纸本墨笔 · 2024</div>
+                    </div>
+                    <div class="work-item">
+                        <span class="work-emoji">🫖</span>
+                        <div class="work-name">《煮茶图》</div>
+                        <div class="work-desc">纸本淡彩 · 2024</div>
+                    </div>
+                    <div class="work-item">
+                        <span class="work-emoji">🌙</span>
+                        <div class="work-name">《月下独酌》</div>
+                        <div class="work-desc">绢本水墨 · 2024</div>
+                    </div>
+                    <div class="work-item">
+                        <span class="work-emoji">🍃</span>
+                        <div class="work-name">《荷塘清韵》</div>
+                        <div class="work-desc">纸本设色 · 2023</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📝 诗文小辑</div>
+                <div style="color: var(--text-muted); font-size: 0.95rem; line-height: 2;">
+                    <p style="text-indent: 2em;">「 山色有无中，云烟自卷舒。 </p>
+                    <p style="text-indent: 2em;">&nbsp;&nbsp;&nbsp;偶得林泉趣，何必问归途。 」</p>
+                    <div style="text-align: right; margin-top: 8px; color: var(--accent-gold);">—— 商火包 · 《山行偶得》</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-content" id="tab-ai">
+            <div class="card">
+                <div class="card-title">🤖 智笔新绘 · AI时代的古典守望</div>
+                <div class="ai-portfolio-intro">
+                    <p class="intro-text">
+                        在瞬息万变的AI时代，我不曾放弃对中国传统文化的热烈执着，同时，更以开放而进取的心态，积极触碰前沿人工智能的无限可能。
+                    </p>
+                    <p class="intro-text">
+                        将古老美学的骨骼、气韵，与现代AI的算法、算力相互结合，用智能之笔重塑古典墨迹，探求一种融合古典意境与前沿科技的全新视觉维度。
+                    </p>
+                </div>
+
+                <div class="ai-grid">
+                    <div class="ai-card">
+                        <div class="ai-img-wrapper">
+                            <img src="Advanced AI Junior.jpg" alt="Advanced AI Junior" class="ai-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'100%\' viewBox=\'0 0 100 100\'><rect width=\'100%\' height=\'100%\' fill=\'%23eae3d2\'/><text x=\'50%\' y=\'50%\' font-size=\'8\' fill=\'%235a544b\' text-anchor=\'middle\' font-family=\'serif\'>[ 传统画意 &amp; AI初探索 ]</text></svg>';">
+                        </div>
+                        <div class="ai-info">
+                            <h3 class="ai-card-title">Advanced AI Junior</h3>
+                            <p class="ai-card-desc">探索中国传统绘画的线条、构图与多模态AI图像算法的初步融合，寻求代码 and 墨色之间的共鸣点。</p>
+                        </div>
+                    </div>
+
+                    <div class="ai-card">
+                        <div class="ai-img-wrapper">
+                            <img src="Advanced AI Trainer.jpg" alt="Advanced AI Trainer" class="ai-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'100%\' viewBox=\'0 0 100 100\'><rect width=\'100%\' height=\'100%\' fill=\'%23eae3d2\'/><text x=\'50%\' y=\'50%\' font-size=\'8\' fill=\'%235a544b\' text-anchor=\'middle\' font-family=\'serif\'>[ 古典Lora训练与参数微调 ]</text></svg>';">
+                        </div>
+                        <div class="ai-info">
+                            <h3 class="ai-card-title">Advanced AI Trainer</h3>
+                            <p class="ai-card-desc">深度涉足人工智能模型的提示词工程与权重微调，把水墨特有的「气韵生动」作为核心进行特征沉淀。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-content" id="tab-contact">
+            <div class="card">
+                <div class="card-title">✉️ 鸿雁传书</div>
+                <p style="color: var(--text-muted); margin-bottom: 18px; font-size: 0.95rem;">
+                    若有雅意，可依以下方式相寻。
+                </p>
+
+                <div class="contact-list">
+                    <a href="mailto:shanghuobao@example.com" class="contact-item">
+                        <span class="contact-icon">📧</span>
+                        <span class="contact-label">邮箱</span>
+                        <span class="contact-value">shanghuobao@example.com</span>
+                    </a>
+                    <a href="#" class="contact-item" onclick="alert('公众号：商火包画坊'); return false;">
+                        <span class="contact-icon">📱</span>
+                        <span class="contact-label">公众号</span>
+                        <span class="contact-value">商火包画坊</span>
+                    </a>
+                    <a href="#" class="contact-item" onclick="alert('小红书：商火包'); return false;">
+                        <span class="contact-icon">📕</span>
+                        <span class="contact-label">小红书</span>
+                        <span class="contact-value">@商火包</span>
+                    </a>
+                    <a href="#" class="contact-item" onclick="alert('微信号：shanghuobao_art'); return false;">
+                        <span class="contact-icon">💬</span>
+                        <span class="contact-label">微信</span>
+                        <span class="contact-value">shanghuobao_art</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📍 所在</div>
+                <p style="color: var(--text-muted);">
+                    现居江南 · 姑苏城外 <br />
+                    闲时多在山塘街、平江路一带写生，<br />
+                    偶遇可共饮一盏茶。
+                </p>
+            </div>
+        </section>
+
+        <div class="footer-note">
+            商火包 · 甲辰年秋月 · 笔墨为伴
+        </div>
+
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ---------- 卷轴开场动画控制 ----------
+            const introOverlay = document.getElementById('intro-overlay');
+            const leftRod = document.getElementById('rod-left');
+            const rightRod = document.getElementById('rod-right');
+            const enterBtn = document.getElementById('enterBtn');
+
+            // 动态计算在不同的屏幕宽度下卷轴向两端退开的距离
+            function updateScrollAnimation() {
+                const screenWidth = window.innerWidth;
+                const scrollWidth = Math.min(screenWidth * 0.9, 1000);
+                const halfDistance = scrollWidth / 2;
+                
+                // 将动画偏移量写入CSS自定义属性
+                leftRod.style.setProperty('--rod-left-offset', `-${halfDistance}px`);
+                rightRod.style.setProperty('--rod-right-offset', `${halfDistance}px`);
+            }
+            
+            // 注入动态计算出的平移关键帧样式，保证任何设备下画轴都能精准贴合边缘拉开
+            const styleSheet = document.createElement("style");
+            document.head.appendChild(styleSheet);
+            
+            function updateDynamicStyles() {
+                const screenWidth = window.innerWidth;
+                const scrollWidth = Math.min(screenWidth * 0.9, 1000);
+                const offset = (scrollWidth / 2) + 20; // 适当增加一点边界缓冲
+                
+                styleSheet.innerHTML = `
+                    #intro-overlay.unfold .rod-left {
+                        transform: translateX(-${offset}px);
+                    }
+                    #intro-overlay.unfold .rod-right {
+                        transform: translateX(${offset}px);
+                    }
+                `;
+            }
+
+            // 初始化卷轴动态样式并展开
+            updateDynamicStyles();
+            window.addEventListener('resize', updateDynamicStyles);
+
+            // 页面加载完成后 500ms 自动徐徐开启卷轴
+            window.addEventListener('load', function() {
+                setTimeout(() => {
+                    introOverlay.classList.add('unfold');
+                }, 500);
+            });
+
+            // 【关键修复 1】：完美解决移动端“点击启卷入席无法进入”及滑动失效的问题
+            enterBtn.addEventListener('click', function() {
+                introOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    introOverlay.style.display = 'none';
+                    // 强制移动端重置并顺畅滑动
+                    document.body.style.overflow = 'auto';
+                    document.body.style.overflowY = 'auto';
+                    document.documentElement.style.overflow = 'auto';
+                    document.documentElement.style.overflowY = 'auto';
+                }, 1200);
+            });
+
+
+            // ---------- DOM 引用 ----------
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            const navDrawer = document.getElementById('navDrawer');
+            const overlay = document.getElementById('overlay');
+            const navItems = document.querySelectorAll('.nav-item');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            // ---------- 菜单开关 ----------
+            function toggleMenu(open) {
+                const isOpen = navDrawer.classList.contains('open');
+                const shouldOpen = (open !== undefined) ? open : !isOpen;
+
+                if (shouldOpen) {
+                    navDrawer.classList.add('open');
+                    overlay.classList.add('show');
+                    hamburgerBtn.classList.add('active');
+                    // 只有当开幕层已经消失时才限制body滚动
+                    if(introOverlay.style.display === 'none') {
+                        document.body.style.overflow = 'hidden';
+                    }
+                } else {
+                    navDrawer.classList.remove('open');
+                    overlay.classList.remove('show');
+                    hamburgerBtn.classList.remove('active');
+                    if(introOverlay.style.display === 'none') {
+                        document.body.style.overflow = '';
+                        document.body.style.overflowY = '';
+                    }
+                }
+            }
+
+            hamburgerBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleMenu();
+            });
+
+            overlay.addEventListener('click', function() {
+                toggleMenu(false);
+            });
+
+            // ---------- 标签页切换 ----------
+            function switchTab(tabId) {
+                // 隐藏所有 tab
+                tabContents.forEach(function(tc) {
+                    tc.classList.remove('active');
+                });
+
+                // 显示目标 tab
+                const target = document.getElementById(tabId);
+                if (target) {
+                    target.classList.add('active');
+                }
+
+                // 更新导航高亮
+                navItems.forEach(function(item) {
+                    item.classList.remove('active');
+                    if (item.dataset.tab === tabId) {
+                        item.classList.add('active');
+                    }
+                });
+
+                // 关闭菜单
+                toggleMenu(false);
+                // 滚动至顶部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            navItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    if (tabId) {
+                        switchTab(tabId);
+                    }
+                });
+            });
+
+            // ---------- 背景 Canvas 意境（水纹/墨韵） ----------
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+
+            // 缓存当前的宽和高，防止移动端滚动时工具栏出现和隐藏反复触发 resize 导致白屏或卡顿
+            let lastWidth = window.innerWidth;
+            let lastHeight = window.innerHeight;
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // 绘制极淡墨韵 + 水纹
+            function drawBackground() {
+                const w = canvas.width;
+                const h = canvas.height;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // 底色 — 极淡宣纸纹理
+                const gradient = ctx.createRadialGradient(w * 0.5, h * 0.5, 50, w * 0.5, h * 0.5, Math.max(w, h) * 0.8);
+                gradient.addColorStop(0, 'rgba(244, 240, 234, 0.6)');
+                gradient.addColorStop(1, 'rgba(234, 227, 210, 0.3)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, w, h);
+
+                // 若隐若现的墨晕
+                const spots = [
+                    { x: w * 0.12, y: h * 0.15, r: 140, a: 0.04 },
+                    { x: w * 0.85, y: h * 0.30, r: 180, a: 0.05 },
+                    { x: w * 0.20, y: h * 0.80, r: 160, a: 0.03 },
+                    { x: w * 0.75, y: h * 0.85, r: 120, a: 0.04 },
+                    { x: w * 0.50, y: h * 0.50, r: 200, a: 0.02 },
+                ];
+
+                spots.forEach(function(s) {
+                    const grad = ctx.createRadialGradient(s.x, s.y, 10, s.x, s.y, s.r);
+                    grad.addColorStop(0, 'rgba(75, 98, 85, ' + s.a + ')');
+                    grad.addColorStop(1, 'rgba(75, 98, 85, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // 极淡波纹（水纹）
+                ctx.strokeStyle = 'rgba(75, 98, 85, 0.04)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 18; i++) {
+                    const yBase = 30 + i * 45 + Math.sin(i * 0.7) * 12;
+                    ctx.beginPath();
+                    ctx.moveTo(0, yBase);
+                    for (let x = 0; x <= w; x += 6) {
+                        const y = yBase + Math.sin(x * 0.008 + i * 0.9) * 4 + Math.sin(x * 0.02 + i * 0.4) * 2;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+
+                // 极淡细点 (仿绢本洒金)
+                ctx.fillStyle = 'rgba(150, 114, 64, 0.04)';
+                for (let i = 0; i < 120; i++) {
+                    const x = Math.random() * w;
+                    const y = Math.random() * h;
+                    const r = 1 + Math.random() * 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            drawBackground();
+
+            // 【关键修复 2】：窗口变化时重绘 (通过宽高变化量判断，过滤移动端上下滑动工具栏带来的干扰)
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                const currentWidth = window.innerWidth;
+                const currentHeight = window.innerHeight;
+                
+                // 只有当宽度发生明显变化时（例如横竖屏切换或PC缩放），才重新生成画布，防止滚动条抖动死循环
+                if (Math.abs(currentWidth - lastWidth) > 50 || Math.abs(currentHeight - lastHeight) > 100) {
+                    lastWidth = currentWidth;
+                    lastHeight = currentHeight;
+                    
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(function() {
+                        resizeCanvas();
+                        drawBackground();
+                    }, 200);
+                }
+            });
+
+            // ---------- 键盘辅助 (ESC 关闭菜单) ----------
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    toggleMenu(false);
+                }
+            });
+
+        })();
+    </script>
+
+</body>
+</html>
